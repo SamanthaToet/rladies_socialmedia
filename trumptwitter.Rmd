@@ -1,0 +1,306 @@
+---
+title: "Is Donald Trump Mostly a Jerk on Twitter?"
+author: "Samantha Toet"
+date: "11/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Intro
+
+The Donald is known as one of the most prolific users of social media in national politics. So what is this guy actually Tweeting about? 
+
+# Set up 
+
+Load required packages:
+
+```{r packages, warning=FALSE, message=FALSE}
+library(rtweet) # interface with Twitter API
+library(tidytext) # sentiment analysis
+library(tidyverse) # ggplot
+library(wordcloud) # wordclouds 
+library(igraph) # networks
+library(ggraph) # graphs
+library(tm) # text mining 
+```
+
+# Connect to Twitter
+
+Get connected at app.twitter.com and save your credentials
+
+```{r connect, echo=TRUE, eval=FALSE}
+# DO NOT RUN! THE BELOW CODE IS AN EXAMPLE EACH KEY & SECRET IS UNIQUE TO YOU!
+
+create_token(app = "rladies_cville",
+             consumer_key = "BUdtul9S5Iv5GZPJrXZPsVp2px", 
+             consumer_secret = "K0Y9PZhQEncA08EOQr1MpK3m1TwtHIkSXwSFkv3VVk9M08IX0Zx",
+             access_token = "975786175830155265-AwAlPT5xlEFr8f143jO23G363uN2wHSx",
+             access_secret = "fD9SOQx7DJR5SiJG7tKWPIq8FbqxKw8OriGH2JZTvfRQDx")
+```
+
+# Scrape data
+
+```{r get_timeline, echo=TRUE, eval=FALSE}
+# DO NOT RUN! THIS IS FOR EXAMPLE!
+dt_tweets <- get_timeline("realDonaldTrump", 3200) %>%
+    select(created_at, text) %>%
+    mutate(id = c(1:3193), text = tolower(text))
+```
+
+The above code gets up to 3200 tweets from his Twitter handle from Dec 2017 to Nov 2018, and stores each tweet, timestamp, and tweet ID as a new row.  
+
+# Download data
+
+To avoid API rate limits and Twitter dev complications, you can download the pre-scraped twitter data as a csv here: https://github.com/SamanthaToet/rladies_socialmedia/blob/master/dt_tweets.csv
+
+```{r read, message=FALSE, warning=FALSE}
+dt_tweets <- read_csv("dt_tweets.csv")
+
+dt_tweets
+```
+
+# Tidy
+
+Tidy the dataframe so that there is one element, or word, per row:
+
+```{r tidy}
+dt_tidy <- dt_tweets %>%
+    unnest_tokens(word, text) 
+
+dt_tidy
+```
+
+# Remove stop words
+
+Remove common words and urls:
+
+```{r, warning=FALSE, message=FALSE}
+data(stop_words)
+stop_words <- data.frame(word = c("https", "http", "amp", "t.co"), 
+           lexicon = "custom") %>%
+    bind_rows(stop_words)
+dt_tidy <- dt_tidy %>%
+    anti_join(stop_words)
+
+dt_tidy
+```
+
+# Explore
+
+What are the words he uses most often in his tweets? 
+
+```{r explore}
+dt_tidy %>%
+    count(word, sort = TRUE)
+dt_tidy %>%
+    count(word, sort = TRUE) %>%
+    filter(n > 150) %>%
+    mutate(word = reorder(word, n)) %>%
+    ggplot(aes(word, n)) +
+    geom_col() +
+    xlab(NULL) +
+    coord_flip()
+```
+
+Okay, so lots of tweets about himself. 
+
+# Wordclouds
+
+What's another way to visualize his most commonly used words? 
+
+```{r wordcloud, warning=FALSE}
+dt_tidy %>%
+    anti_join(stop_words) %>%
+    count(word) %>%
+    with(wordcloud(word, n, max.words = 100, ordered.colors = TRUE))
+```
+
+# Sentiment Analysis: NRC
+
+So what emotions does he invoke? What's his attitude like in these tweets? 
+
+The NRC lexicon categorizes words in a binary fashion (“yes”/“no”) into categories of positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust.
+
+http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm
+
+# NRC: Joy
+
+How often does he use words associated with joy? What words does he choose to use? 
+
+```{r joy}
+nrc_joy <- get_sentiments("nrc") %>%
+    filter(sentiment == "joy")
+
+dt_tidy %>%
+    inner_join(nrc_joy) %>%
+    count(word, sort = TRUE) 
+```
+
+Deal, white, love, pay, happy, money... nothing too surprising or especially loaded. 
+
+# NRC: Anger 
+
+What about anger? How often does he use anger-associated words? What words does he choose to use? 
+
+```{r anger}
+nrc_anger <- get_sentiments("nrc") %>% 
+    filter(sentiment == "anger")
+
+dt_tidy %>%
+    inner_join(nrc_anger) %>%
+    count(word, sort = TRUE)
+```
+
+Yikes: crime, collusion, witch, phony - he seems pretty mad. 
+
+# NRC: All emotions 
+
+Let's see across the board what his emotions are like:
+
+```{r all}
+nrc <- get_sentiments("nrc")
+
+dt_tidy %>%
+    inner_join(nrc) %>%
+    count(word, sentiment, sort = TRUE) %>%
+    filter(n > 50) %>%
+    mutate(word = reorder(word, n)) %>%
+    ggplot(aes(word, n)) +
+    geom_col(aes(fill = sentiment)) +
+    xlab(NULL) +
+    coord_flip()
+```
+
+That's odd - vote spans all emotions and trump is considered a verb. Is there a better way to view context? 
+
+# Sentiment Analysis: Bing
+
+The Bing lexicon categorizes words in a binary fashion into positive and negative categories.  
+
+https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
+
+So let's get the bing "score" for each Tweet. 
+
+```{r bing_sentiment}
+bing_sentiment <- dt_tidy %>%
+    inner_join(get_sentiments("bing")) %>%
+    count(id, created_at, sentiment) %>%
+    spread(sentiment, n, fill = 0) %>%
+    mutate(sentiment = positive - negative)
+
+bing_sentiment
+```
+
+# Bing timeline
+
+Over time, what does his sentiment look like?
+
+```{r}
+ggplot(bing_sentiment, aes(created_at, sentiment)) +
+    geom_line()
+```
+
+Rollercoaster of emotions...
+
+# Densities
+
+Are there any patterns? Is he more positive or negative? Are there seasonal trends? 
+
+```{r denisty}
+bing_sentiment %>%
+    mutate(month = lubridate::month(created_at))%>% # extracts month
+    ggplot(aes(sentiment, group = month, color = month)) +
+    geom_density() +
+    scale_color_viridis_c()
+```
+
+More positive Tweets near end of the year (holidays?), negative spikes in August - October (Manafort? Kavanaugh? Midterms?)
+
+# Frequency Counts
+
+What are some of the most common positive and negative words he uses?
+
+First get the get the bing association (pos/neg) and count of each word:
+```{r freq}
+bing_word_counts <- dt_tidy %>%
+    inner_join(get_sentiments("bing")) %>%
+    count(word, sentiment, sort = TRUE) %>%
+    ungroup()
+
+bing_word_counts
+```
+
+The postive terms are all relatively neutral, while the negative terms are very strong and accusatory by nature. 
+
+Plot it:
+
+```{r plot}
+bing_word_counts %>%
+    group_by(sentiment) %>%
+    top_n(10) %>%
+    ungroup() %>%
+    mutate(word = reorder(word, n)) %>%
+    ggplot(aes(word, n, fill = sentiment)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~sentiment, scales = "free_y") +
+    labs(y = "Contribution to sentiment",
+         x = NULL) +
+    coord_flip()
+```
+
+Again, mostly tweeting about himself. So what's this fake and cooked stuff he's talking about?
+
+# n-grams 
+
+If we tokenize the data into consecutive sequences of words we can see associations between words. 
+
+```{r bigram}
+# create n-grams:
+trump_bigrams <- dt_tweets %>%
+    unnest_tokens(bigram, text, token = "ngrams", n = 2)
+
+trump_bigrams %>%
+    count(bigram, sort = TRUE)
+
+# remove stop words:
+bigrams_separated <- trump_bigrams %>%
+    separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered <- bigrams_separated %>%
+    filter(!word1 %in% stop_words$word) %>%
+    filter(!word2 %in% stop_words$word)
+```
+
+# Trump's n-grams:
+
+```{r}
+bigram_counts <- bigrams_filtered %>% 
+    count(word1, word2, sort = TRUE)
+bigram_counts
+```
+
+So the most common word association is "fake news," followed by "witch hunt," "north korea," and even "crooked hillary"... yikes
+
+# Visualize associations
+
+```{r vis}
+bigram_graph <- bigram_counts %>%
+    filter(n > 20) %>%
+    graph_from_data_frame()
+
+ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link() +
+    geom_node_point() +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+```
+
+# Summary
+
+When he's not tweeting about himself he's attacking others so, yes, Donald Trump is a jerk on Twitter. Sad! 
+
+![](https://loopnewslive.blob.core.windows.net/liveimage/sites/default/files/2018-04/srC31wKARz.jpg)
+
+
