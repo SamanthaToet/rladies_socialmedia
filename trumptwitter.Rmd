@@ -32,13 +32,13 @@ library(tm) # text mining
 Get connected at app.twitter.com and save your credentials
 
 ```{r connect, echo=TRUE, eval=FALSE}
-# DO NOT RUN! THE BELOW CODE IS AN EXAMPLE EACH KEY & SECRET IS UNIQUE TO YOU!
+# DO NOT COPY AND PASTE - THIS IS FAKE INFO FOR EXAMPLE ONLY ;)
 
 create_token(app = "rladies_cville",
-             consumer_key = "BUdtul9S5Iv5GZPJrXZPsVp2px", 
-             consumer_secret = "K0Y9PZhQEncA08EOQr1MpK3m1TwtHIkSXwSFkv3VVk9M08IX0Zx",
-             access_token = "975786175830155265-AwAlPT5xlEFr8f143jO23G363uN2wHSx",
-             access_secret = "fD9SOQx7DJR5SiJG7tKWPIq8FbqxKw8OriGH2JZTvfRQDx")
+             consumer_key = "BUdtusfkjhadfkjhgsafdZPsVp2px", 
+             consumer_secret = "K0Y9P4324598dfagkljhasfdkjFSD4897Zx",
+             access_token = "9757861345987dfAF2dF5522wHSx",
+             access_secret = "fD9SOQhjkladfkjADSGSFG423452RQDx")
 ```
 
 # Scrape data
