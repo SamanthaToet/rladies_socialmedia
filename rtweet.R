@@ -10,11 +10,12 @@ library(tm) # text mining
 
 
 # Get connected: app.twitter.com 
+# DO NOT COPY AND PASTE - THIS IS FAKE INFO FOR EXAMPLE ONLY ;)
 create_token(app = "rladies_cville",
-             consumer_key = "BUdtul9S5Iv5GZPJrXZPsVp2p", 
-             consumer_secret = "K0Y9PZhQEncA08EOQr1MpK3m1TwtHIkSXwSFkv3VVk9M08IX0Z",
-             access_token = "975786175830155265-AwAlPT5xlEFr8f143jO23G363uN2wHS",
-             access_secret = "fD9SOQx7DJR5SiJG7tKWPIq8FbqxKw8OriGH2JZTvfRQD")
+             consumer_key = "BUdtul9S5Iv5sdlkfhasdhjkasf", 
+             consumer_secret = "sauyjhklaRweatHIkSXwSFkv3VVk9M08IX0Z",
+             access_token = "97578617583015398DSashus7143jO23GN2wHS",
+             access_secret = "fD9SOQdasofsadkl239324987d2JZTvfRQD")
 
 
 # EX. Get 10,000 non-retweets containing rstats hashtag:
